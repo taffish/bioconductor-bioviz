@@ -4,8 +4,8 @@ suppressPackageStartupMessages({
 })
 
 bioviz_cli_version <- function() {
-  value <- Sys.getenv("BIOVIZ_CLI_VERSION", "0.1.0")
-  if (!nzchar(value)) "0.1.0" else value
+  value <- Sys.getenv("BIOVIZ_CLI_VERSION", "0.2.0")
+  if (!nzchar(value)) "0.2.0" else value
 }
 
 read_table_auto <- function(path) {

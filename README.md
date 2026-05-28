@@ -9,9 +9,9 @@ environment plus stable helper CLIs.
 
 - name: `bioconductor-bioviz`
 - command: `taf-bioconductor-bioviz`
-- TAFFISH version: `3.23-r1`
+- TAFFISH version: `3.23-r2`
 - kind: `tool`
-- container image: `ghcr.io/taffish/bioconductor-bioviz:3.23-r1`
+- container image: `ghcr.io/taffish/bioconductor-bioviz:3.23-r2`
 - upstream runtime: Bioconductor `3.23` on R `4.6.0`
 - default command: `Rscript`
 - helper commands: `bioviz-runtime-info`, `bioviz-tree`
@@ -28,7 +28,7 @@ taf-bioconductor-bioviz --help
 The app uses a thin TAFFISH container wrapper:
 
 ```taf
-<taf-app:container:ghcr.io/taffish/bioconductor-bioviz:3.23-r1>
+<taf-app:container:ghcr.io/taffish/bioconductor-bioviz:3.23-r2>
 Rscript ::*ARGV*::
 ```
 
@@ -82,7 +82,10 @@ than silently replacing the old image.
 ### `bioviz-tree`
 
 Plots a Newick phylogenetic tree with optional metadata and display-label map.
-This is the r1 stable helper intended for phylogeny flows.
+This is the stable helper intended for phylogeny flows. The r2 release changes
+the default tree rendering to a cleaner publication-oriented style and adds
+automatic plot dimensions, right-side label padding, and unclipped output
+rendering for long tip labels.
 
 ```bash
 taf-bioconductor-bioviz bioviz-tree \
@@ -107,6 +110,17 @@ Column detection is intentionally simple and flow-friendly:
 - label-map source column is inferred from `sequence_id`, `id`, `tip`, `tip_label`, `old_id`, or `from`; override with `--label-map-from`.
 - label-map target column is inferred from `label`, `display_label`, `name`, `sample`, `new_id`, or `to`; override with `--label-map-to`.
 
+Style and canvas behavior:
+
+- `--style journal` is the default and uses lighter branches, no default tip dots without metadata, automatic dimensions, and extra label-safe plot margins.
+- `--style classic` keeps a heavier traditional tree look.
+- `--style minimal` is a quieter compact style.
+- `--label-align none` is the default. Use `--label-align guide` only when aligned dotted tip guides are desired.
+- `--label-transform pretty` can turn underscores into spaces and `|` into readable separators for review figures; the default `none` preserves labels exactly.
+- `--scale-bar auto` is the default and draws a scale bar for rectangular trees with branch lengths; use `--scale-bar none` for branchless cladograms or compact thumbnails.
+- `--width`, `--height`, `--tip-label-size`, `--point-size`, `--label-offset`, and `--right-padding` can override the automatic choices.
+- `--title` is recorded in the summary and manifest; titles with spaces are tolerated when TAFFISH-generated shell code splits the words.
+
 Main outputs:
 
 - `tree.pdf`, `tree.png`, and/or `tree.svg`, depending on `--formats`
@@ -116,7 +130,7 @@ Main outputs:
 - `run.manifest.json`
 - `sessionInfo.txt`
 
-Supported layouts in r1 are `rectangular`, `circular`, and `fan`. Supported
+Supported layouts are `rectangular`, `circular`, and `fan`. Supported
 output formats are `pdf`, `png`, and `svg`.
 
 ## Custom R Scripts
@@ -135,7 +149,7 @@ as a container command name, not as an argument to the default `Rscript`.
 ## Boundaries
 
 This app deliberately starts with `Rscript` plus `bioviz-tree`. It is a
-general visualization runtime, but r1 does not yet promise helper CLIs for
+general visualization runtime, but this release does not yet promise helper CLIs for
 volcano plots, PCA, heatmaps, enrichment dotplots, or report assembly. Those
 should be added as named helpers only when a flow needs a stable reusable
 interface and the helper has its own smoke coverage.
@@ -162,7 +176,7 @@ Smoke tests check:
 - `BiocManager::version()` is exactly `3.23`.
 - all required Bioconductor/CRAN packages can be loaded.
 - helper help/version pages are available.
-- `bioviz-tree` renders a rectangular tree with metadata and label map to PDF, PNG, and SVG.
+- `bioviz-tree` renders a rectangular journal-style tree with metadata, long labels, and label-safe canvas behavior to PDF, PNG, and SVG.
 - `bioviz-tree` renders an independent circular PNG tree without tip labels.
 
 Each smoke test creates its own `/tmp/taf-bioviz-*` fixture and does not depend

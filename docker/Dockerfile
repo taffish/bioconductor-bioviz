@@ -2,7 +2,7 @@ FROM bioconductor/bioconductor_docker:RELEASE_3_23
 
 ARG BIOCONDUCTOR_VERSION=3.23
 ARG R_VERSION=4.6.0
-ARG BIOVIZ_CLI_VERSION=0.1.0
+ARG BIOVIZ_CLI_VERSION=0.2.0
 
 LABEL maintainer="taffish@163.com"
 
@@ -69,13 +69,17 @@ RUN set -eux; \
       'seq2	Alpha two' \
       'seq3	Beta one' \
       'seq4	Beta two' > label-map.tsv; \
-    bioviz-tree --tree tree.nwk --metadata metadata.tsv --label-map label-map.tsv --color-by group --layout rectangular --formats pdf,png,svg --outdir out; \
+    bioviz-tree --tree tree.nwk --metadata metadata.tsv --label-map label-map.tsv --color-by group --layout rectangular --formats pdf,png,svg --style journal --title Journal Style Smoke --outdir out; \
     test -s out/tree.pdf; \
     test -s out/tree.png; \
     test -s out/tree.svg; \
     test -s out/tree_plot_summary.tsv; \
     test -s out/run.manifest.json; \
     grep -F "metadata_matched_tips" out/tree_plot_summary.tsv >/dev/null; \
+    grep -F "style	journal" out/tree_plot_summary.tsv >/dev/null; \
+    grep -F "scale_bar	auto" out/tree_plot_summary.tsv >/dev/null; \
+    grep -F "title	Journal Style Smoke" out/tree_plot_summary.tsv >/dev/null; \
+    grep -F "plot_width" out/tree_plot_summary.tsv >/dev/null; \
     cd /; \
     rm -rf /tmp/taf-bioviz-check
 

@@ -1,8 +1,8 @@
-taf-bioconductor-bioviz 3.23-r1
+taf-bioconductor-bioviz 3.23-r2
 
 TAFFISH-maintained R/Bioconductor 3.23 bioinformatics visualization
 runtime. It provides Rscript plus stable helper CLIs for downstream plotting
-flows. The r1 helper surface focuses on Newick tree visualization.
+flows. The current stable helper surface focuses on Newick tree visualization.
 
 Usage:
   taf-bioconductor-bioviz [-h | --help]
@@ -38,18 +38,34 @@ Common tree plot:
     --formats pdf,png,svg \
     --outdir plots
 
+Tree style:
+  bioviz-tree defaults to --style journal, --label-align none, automatic
+  width/height, and extra right-side padding so long labels are not clipped.
+  Use --label-align guide only when aligned dotted tip guides are wanted.
+  Use --style classic or --style minimal for heavier or quieter alternatives.
+  Use --label-transform pretty for review figures where underscores and pipe
+  separators should be rendered more readably.
+  Use --scale-bar none for branchless cladograms or compact thumbnails.
+  The default --scale-bar auto draws a scale bar for rectangular trees with
+  branch lengths.
+  Titles with spaces are tolerated when TAFFISH-generated shell code splits
+  the title words, and the final title is recorded in the summary/manifest.
+
 bioviz-tree inputs:
   --tree is a single Newick file. --metadata is an optional TSV/CSV table
   keyed by original tree tip labels. --label-map is an optional two-column
   table from original tree tip labels to display labels.
 
 bioviz-tree outputs:
-  tree.pdf, tree.png, tree.svg, tree_plot_summary.tsv,
-  tree_tip_annotations.tsv, versions.tsv, run.manifest.json, sessionInfo.txt.
+  Depending on --formats, tree.pdf, tree.png, and/or tree.svg.
+  Every run also writes tree_plot_summary.tsv, tree_tip_annotations.tsv,
+  versions.tsv, run.manifest.json, and sessionInfo.txt.
 
 bioviz-tree layouts and formats:
   Layouts: rectangular, circular, fan.
   Formats: pdf, png, svg.
+  Output size can be overridden with --width, --height, --dpi,
+  --tip-label-size, --label-offset, --right-padding, and scale-bar options.
 
 Packaged commands:
   R, Rscript, bioviz-runtime-info, bioviz-tree.
@@ -70,7 +86,7 @@ Platform:
   both platforms.
 
 Boundaries:
-  This app is a visualization runtime and helper CLI app. r1 provides Rscript
+  This app is a visualization runtime and helper CLI app. It provides Rscript
   and bioviz-tree. It does not infer trees, align sequences, install packages
   at runtime, download project metadata, or provide every common biological
   plot helper yet. Add future helpers such as volcano, heatmap, PCA, or dotplot
