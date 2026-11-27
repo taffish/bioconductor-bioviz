@@ -1,195 +1,193 @@
 # taf-bioconductor-bioviz
 
-TAFFISH-maintained R/Bioconductor bioinformatics visualization runtime for
-tree plots and future flow-facing biological visual summaries. It is not a
-wrapper around a single upstream package; it is a curated R/Bioconductor
-environment plus stable helper CLIs.
+A curated R/Bioconductor environment for static biological figures, with
+`bioviz-tree` for Newick trees. This is not the complete Bioconductor catalog
+or a tree-inference pipeline.
 
-## Package Identity
+## Identity and installation
 
-- name: `bioconductor-bioviz`
-- command: `taf-bioconductor-bioviz`
-- TAFFISH version: `3.23-r2`
-- kind: `tool`
-- container image: `ghcr.io/taffish/bioconductor-bioviz:3.23-r2`
-- upstream runtime: Bioconductor `3.23` on R `4.6.0`
-- default command: `Rscript`
-- helper commands: `bioviz-runtime-info`, `bioviz-tree`
-- upstream/base license boundary: multiple open-source licenses across R, Bioconductor, CRAN, and system packages
-- TAFFISH wrapper/helper license: Apache-2.0
+- App: `bioconductor-bioviz 3.24-r1`; command: `taf-bioconductor-bioviz`.
+- Image: `ghcr.io/taffish/bioconductor-bioviz:3.24-r1`.
+- Runtime: Bioconductor `3.24`, R `4.6.2`; helper CLI `0.2.0`.
+- Platforms: native `linux/amd64` and `linux/arm64`.
+- Required host software: TAFFISH and a configured Docker, Podman or Apptainer
+  backend. No host R installation is required.
 
-## Installation
-
-```bash
+```sh
 taf install bioconductor-bioviz
 taf-bioconductor-bioviz --help
-```
-
-The app uses a thin TAFFISH container wrapper:
-
-```taf
-<taf-app:container:ghcr.io/taffish/bioconductor-bioviz:3.23-r2>
-Rscript ::*ARGV*::
-```
-
-Wrapper-level help and version are separate from the R runtime:
-
-```bash
-taf-bioconductor-bioviz --help
 taf-bioconductor-bioviz --version
-taf-bioconductor-bioviz -- --version
 taf-bioconductor-bioviz Rscript --version
 taf-bioconductor-bioviz bioviz-runtime-info
 ```
 
-Because `command_mode = true`, use explicit commands for the second layer:
+The wrapper version describes the app. `bioviz-runtime-info` prints the actual
+R, Bioconductor and main package versions. The wrapper supports command mode:
+always use `Rscript script.R`, not a bare script filename. `--compile` prints
+the generated command without executing it.
 
-```bash
-taf-bioconductor-bioviz Rscript plot_custom.R
-taf-bioconductor-bioviz bioviz-tree --help
-taf-bioconductor-bioviz bioviz-runtime-info
+## Plot a tree
+
+```sh
+taf-bioconductor-bioviz bioviz-tree --tree tree.nwk \
+  --metadata metadata.tsv --label-map labels.tsv --color-by group \
+  --layout rectangular --formats pdf,png,svg --outdir plots
 ```
 
-## Included Runtime
+Inputs:
 
-The image is based on the official Bioconductor Docker release image:
+- `--tree`: one Newick tree, read with `ape::read.tree`; input is not modified.
+- `--metadata`: optional TSV/CSV keyed by original tip labels. The ID column
+  is inferred from `sample`, `sample_id`, `id`, `sequence_id`, `tip`,
+  `tip_label` or `label`; override with `--metadata-id-column`.
+- `--label-map`: optional table mapping original IDs to display labels. Source
+  candidates are `sequence_id`, `id`, `tip`, `tip_label`, `old_id`, `from`;
+  target candidates are `label`, `display_label`, `name`, `sample`,
+  `new_id`, `to`. Override with `--label-map-from` and `--label-map-to`.
+  Without a recognized name, the first/second column is used respectively.
+- Duplicate metadata/map IDs are rejected. Unmatched labels keep their original
+  ID; metadata matches and missing values are recorded in the output.
 
-```text
-bioconductor/bioconductor_docker:RELEASE_3_23
+Defaults are `--layout rectangular --style journal --formats pdf,png,svg`,
+`--label-align none --label-transform none --scale-bar auto`.
+Other layouts are `circular` and `fan`; other styles are `classic` and
+`minimal`. A numeric `--color-by` field uses a continuous color scale;
+categorical fields use group colors. Without metadata there are no default
+tip dots in journal style.
+
+`--label-align guide` adds dotted guides. `--label-transform pretty` replaces
+underscores/pipes only in display labels. The rectangular scale bar represents
+branch-length units, not support or time. Use `--scale-bar none` to suppress it.
+`--width`, `--height` (inches), `--dpi`, `--tip-label-size`,
+`--label-offset` and `--right-padding` override automatic sizing.
+Run `taf-bioconductor-bioviz bioviz-tree --help` for the complete options.
+
+## Paths, custom R and quoting
+
+Run in a writable working directory. TAFFISH compiles arguments into shell
+code; preserve literal shell quotes around a path/title that contains spaces:
+
+```sh
+taf-bioconductor-bioviz Rscript '"my plot.R"'
+taf-bioconductor-bioviz bioviz-tree --tree '"input tree.nwk"' \
+  --title '"Example tree"' --outdir '"tree plots"'
 ```
 
-The Dockerfile verifies R `4.6.0`, Bioconductor `3.23`, and required package
-availability during the image build. It installs or retains these main packages:
+The outer single quotes are consumed by the host shell; the inner double quotes
+reach the generated command. For complicated expressions, put R code in a file
+and invoke explicit `Rscript`, rather than embedding several levels of `-e`
+quoting. Treat scripts and shell arguments as trusted code, not untrusted input.
 
-- tree and phylogeny packages: `ape`, `treeio`, `ggtree`, `tidytree`
-- plotting and output packages: `ggplot2`, `svglite`, `ragg`, `ggrepel`, `patchwork`, `cowplot`, `scales`, `viridis`, `RColorBrewer`
-- CLI/table/provenance packages: `optparse`, `jsonlite`, `readr`, `data.table`
-- system/runtime helpers: `bash`, `pandoc`, font and image libraries needed by `ragg` and `svglite`
+## Outputs, overwrite and retry
 
-Package patch versions are recorded in the built image at
-`/opt/bioconductor-bioviz/runtime-versions.tsv` and can be printed with:
+The requested formats create `tree.pdf`, `tree.png`, `tree.svg`. Each run
+also writes `tree_plot_summary.tsv`, `tree_tip_annotations.tsv`,
+`versions.tsv`, `run.manifest.json` and `sessionInfo.txt`.
+The summary preserves the existing phylogeny Flow field names, including
+`tip_count`, `layout`, `formats`, `style`, `label_align`,
+`label_transform`, `metadata_matched_tips` and output paths.
+These are technical plot/provenance records, not scientific validation of a tree.
 
-```bash
-taf-bioconductor-bioviz bioviz-runtime-info
+A nonempty output directory is refused unless `--force` is explicit.
+`--force` overwrites named helper outputs, not unrelated files; avoid using it
+in directories containing important results. Rendering is not transactional:
+an error or Ctrl-C can leave partial outputs, and an old manifest is not a
+completion marker for a failed overwrite. Retry in a fresh directory and check
+the exit status. There is no resume or automatic deletion facility.
+
+## Resources and backends
+
+The image includes `ape`, `treeio`, `ggtree`, `tidytree`, `ggplot2`,
+`svglite`, `ragg`, `ggrepel`, `patchwork`, `cowplot`, `scales`,
+`viridis`, `RColorBrewer`, `optparse`, `jsonlite`, `readr` and
+`data.table`, plus the official base's system/font dependencies.
+It does not require a downloadable database/model. Newick, annotations and
+project assets are user-supplied inputs; normal helper runs are offline.
+There is no resource discovery/downloader or automatic package installation.
+Custom scripts may deliberately access networks or install packages; that is
+outside the offline helper contract.
+
+Choose the backend without changing the command:
+
+```sh
+TAFFISH_CONTAINER_BACKEND=docker taf-bioconductor-bioviz bioviz-runtime-info
+TAFFISH_CONTAINER_BACKEND=podman taf-bioconductor-bioviz bioviz-runtime-info
+TAFFISH_CONTAINER_BACKEND=apptainer taf-bioconductor-bioviz bioviz-runtime-info
 ```
 
-If a future rebuild changes package patch versions within the same
-Bioconductor release, the public TAFFISH app release should be advanced rather
-than silently replacing the old image.
+For personal inputs, place readable files under your working directory. For
+shared inputs, an administrator prepares the files once in a site directory
+(for example `/srv/bioviz-inputs`, directories 0755, data files 0644), and users
+mount it read-only. No app-specific install command is needed; the administrator
+remains responsible for the source and license of those project inputs.
 
-## Helper CLIs
+```sh
+TAFFISH_CONTAINER_BACKEND=docker \
+TAFFISH_DOCKER_RUN_ARGS='-v /srv/bioviz-inputs:/inputs:ro' \
+taf-bioconductor-bioviz bioviz-tree --tree /inputs/tree.nwk --outdir plots-docker
 
-### `bioviz-tree`
+TAFFISH_CONTAINER_BACKEND=podman \
+TAFFISH_PODMAN_RUN_ARGS='-v /srv/bioviz-inputs:/inputs:ro' \
+taf-bioconductor-bioviz bioviz-tree --tree /inputs/tree.nwk --outdir plots-podman
 
-Plots a Newick phylogenetic tree with optional metadata and display-label map.
-This is the stable helper intended for phylogeny flows. The r2 release changes
-the default tree rendering to a cleaner publication-oriented style and adds
-automatic plot dimensions, right-side label padding, and unclipped output
-rendering for long tip labels.
-
-```bash
-taf-bioconductor-bioviz bioviz-tree \
-  --tree tree.nwk \
-  --metadata sample_metadata.tsv \
-  --label-map sequence_id_map.tsv \
-  --color-by group \
-  --layout rectangular \
-  --formats pdf,png,svg \
-  --outdir plots
+TAFFISH_CONTAINER_BACKEND=apptainer \
+TAFFISH_APPTAINER_RUN_ARGS='--bind /srv/bioviz-inputs:/inputs:ro' \
+taf-bioconductor-bioviz bioviz-tree --tree /inputs/tree.nwk --outdir plots-apptainer
 ```
 
-Expected inputs:
+On macOS, the selected VM must be permitted to share the actual host path.
+SELinux sites must arrange a suitable read-only label; do not disable isolation
+or recursively relabel shared data as a workaround. Output belongs in the
+user's writable working directory, not the image library or shared input root.
 
-- `--tree`: a single Newick tree file readable by `ape::read.tree`.
-- `--metadata`: optional TSV/CSV table keyed by original tree tip labels.
-- `--label-map`: optional two-column table mapping original tree tip labels to display labels.
+## Figures and service boundary
 
-Column detection is intentionally simple and flow-friendly:
+Open PDF/PNG/SVG on the host. There is no HTML dashboard, browser port or GUI
+launcher. The official base contains RStudio/Shiny-related components, but this
+app does not start or promise those independent services; its default container
+command is Rscript help, not the base's service initializer.
+No Cytoscape, noVNC, Jupyter or unrelated viewer is added.
 
-- metadata id column is inferred from `sample`, `sample_id`, `id`, `sequence_id`, `tip`, `tip_label`, or `label`; override with `--metadata-id-column`.
-- label-map source column is inferred from `sequence_id`, `id`, `tip`, `tip_label`, `old_id`, or `from`; override with `--label-map-from`.
-- label-map target column is inferred from `label`, `display_label`, `name`, `sample`, `new_id`, or `to`; override with `--label-map-to`.
+Font coverage and rendering depend on the device and available fonts. Inspect
+the final figure, especially long labels and non-ASCII text, before publication.
+Base R PDF devices have more limited Unicode handling than PNG/SVG; custom R
+scripts can select an appropriate font and device. A successful exit alone does
+not prove every glyph is displayed correctly.
 
-Style and canvas behavior:
+## Build and reproducibility
 
-- `--style journal` is the default and uses lighter branches, no default tip dots without metadata, automatic dimensions, and extra label-safe plot margins.
-- `--style classic` keeps a heavier traditional tree look.
-- `--style minimal` is a quieter compact style.
-- `--label-align none` is the default. Use `--label-align guide` only when aligned dotted tip guides are desired.
-- `--label-transform pretty` can turn underscores into spaces and `|` into readable separators for review figures; the default `none` preserves labels exactly.
-- `--scale-bar auto` is the default and draws a scale bar for rectangular trees with branch lengths; use `--scale-bar none` for branchless cladograms or compact thumbnails.
-- `--width`, `--height`, `--tip-label-size`, `--point-size`, `--label-offset`, and `--right-padding` can override the automatic choices.
-- `--title` is recorded in the summary and manifest; titles with spaces are tolerated when TAFFISH-generated shell code splits the words.
+The Dockerfile uses the official `RELEASE_3_24` multi-platform digest
+`sha256:4d674c1916aecfe940d95a8135fa67f2529aa431364fb3b7ff2d23a52a8ed363`.
+The base is fixed, but upstream Bioconductor/CRAN repositories are not a complete
+time-frozen snapshot: patch versions and archive availability may change.
+Installed R and system inventories are retained under
+`/opt/bioconductor-bioviz/` as `installed-packages.tsv`,
+`runtime-versions.tsv` and `system-packages.tsv`.
+Inventories document what was built; they are not a repository lock or a promise
+of bit-identical future rebuilds. Changed dependencies require a new validated
+TAFFISH app release, not replacement of a published image.
 
-Main outputs:
+Build checks are lightweight version/import checks. Runtime acceptance covers
+actual tree figures, annotations, output semantics, negative cases and the
+generated wrapper. The inherited official base is large; deleting its files in
+a later layer would not reclaim its lower-layer size.
+The locally built images occupy 5,137,563,056 bytes on ARM64 and 5,228,287,712
+bytes on amd64 (uncompressed engine sizes, not download sizes). Most of this is
+the official base; the amd64 base alone occupies 5,073,141,875 bytes. The added
+R plotting packages and small helpers account for about 155 MB on that platform.
+Keeping the established official-base route preserves its tested R/system
+integration; this app does not claim a minimal R-only distribution.
 
-- `tree.pdf`, `tree.png`, and/or `tree.svg`, depending on `--formats`
-- `tree_plot_summary.tsv`
-- `tree_tip_annotations.tsv`
-- `versions.tsv`
-- `run.manifest.json`
-- `sessionInfo.txt`
+## Upstream, citation and licenses
 
-Supported layouts are `rectangular`, `circular`, and `fan`. Supported
-output formats are `pdf`, `png`, and `svg`.
+- [Bioconductor 3.24 release](https://bioconductor.org/news/bioc_3_24_release/)
+- [Installation](https://bioconductor.org/install/)
+- [Official Docker documentation](https://bioconductor.org/help/docker/)
+- Use `citation("ggtree")`, `citation("treeio")`, `citation("ape")` or the
+  relevant package name in an R script for package-specific citations.
 
-## Custom R Scripts
-
-Users can run custom visualization scripts through the same pinned runtime:
-
-```bash
-taf-bioconductor-bioviz Rscript custom_plot.R
-taf-bioconductor-bioviz -- -e 'library(ggtree); packageVersion("ggtree")'
-```
-
-For script paths, prefer explicit `Rscript`. A bare positional path such as
-`taf-bioconductor-bioviz custom_plot.R` is interpreted by TAFFISH command mode
-as a container command name, not as an argument to the default `Rscript`.
-
-## Boundaries
-
-This app deliberately starts with `Rscript` plus `bioviz-tree`. It is a
-general visualization runtime, but this release does not yet promise helper CLIs for
-volcano plots, PCA, heatmaps, enrichment dotplots, or report assembly. Those
-should be added as named helpers only when a flow needs a stable reusable
-interface and the helper has its own smoke coverage.
-
-This app does not infer trees, align sequences, build gene trees, run
-orthology, query online annotation services, or bundle project-specific color
-palettes and metadata. Use separate TAFFISH tools or explicit workflow inputs
-for MAFFT, MUSCLE, IQ-TREE, FastTree, OrthoFinder, and reference metadata.
-
-Normal helper runs should not install R packages or download core plotting
-dependencies at runtime. Network-dependent resources, custom annotation
-databases, and project-specific assets should be passed explicitly by the flow
-or user.
-
-The image is expected to be large because it fixes a complete R/Bioconductor
-visualization stack. That is intentional: downstream flows should not install
-R packages at runtime or borrow `Rscript` from unrelated tool images.
-
-## Smoke Coverage
-
-Smoke tests check:
-
-- Rscript reports R `4.6.0`.
-- `BiocManager::version()` is exactly `3.23`.
-- all required Bioconductor/CRAN packages can be loaded.
-- helper help/version pages are available.
-- `bioviz-tree` renders a rectangular journal-style tree with metadata, long labels, and label-safe canvas behavior to PDF, PNG, and SVG.
-- `bioviz-tree` renders an independent circular PNG tree without tip labels.
-
-Each smoke test creates its own `/tmp/taf-bioviz-*` fixture and does not depend
-on state from another smoke command.
-
-## Upstream
-
-- Bioconductor homepage: <https://bioconductor.org/>
-- Bioconductor install page: <https://bioconductor.org/install/>
-- Bioconductor 3.23 release: <https://www.bioconductor.org/news/bioc_3_23_release/>
-- Bioconductor Docker documentation: <https://www.bioconductor.org/help/docker/>
-- package citations: use `citation("ggtree")`, `citation("treeio")`, `citation("ape")`, `citation("ggplot2")`, or the relevant package name inside R
-
-The TAFFISH app repository code and documentation are Apache-2.0. The container
-runtime includes R, Bioconductor, CRAN, Debian, and package-specific components
-under their respective upstream licenses.
+TAFFISH wrapper/helper code is Apache-2.0. R, CRAN, Bioconductor, Ubuntu and
+inherited components retain their own licenses, recorded in the image inventory
+and installed package metadata. No wrapper license supersedes them. Users must
+check separately the permissions for their trees, annotations, fonts and other
+input assets.

@@ -1,0 +1,6 @@
+{
+  "artifact": "taf-bioconductor-bioviz-v3.24-r1",
+  "schema": "taffish.build/v1",
+  "source_sha256": "305daebcffddd8e1ce7fd53a145bf43c9673b2c25e9190424eabcaedbdceaede",
+  "wrapper_sha256": "4790cfd98c529ffa9572d033937ad6518f15000ef194c1367c41e3e1027a5cdf"
+}
